@@ -1,63 +1,29 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-
-// Generate unique hash for card URL
-async function generateUniqueHash() {
-  let hash = "";
-  let exists = true;
-  while (exists) {
-    hash = Math.random().toString(36).substring(2, 10);
-    const count = await prisma.businessCard.count({
-      where: { urlHash: hash }
-    });
-    if (count === 0) {
-      exists = false;
-    }
-  }
-  return hash;
-}
+import { CardService } from "@/lib/services/cards";
 
 export async function GET(req) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
-
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
 
     if (id) {
-      const card = await prisma.businessCard.findFirst({
-        where: { id, userId: session.user.id }
-      });
+      const card = await CardService.getCardById(id);
       if (!card) {
         return new NextResponse("Not Found", { status: 404 });
       }
       return NextResponse.json(card);
     }
 
-    const cards = await prisma.businessCard.findMany({
-      where: { userId: session.user.id },
-      orderBy: { createTime: "desc" }
-    });
-
+    const cards = await CardService.listCards();
     return NextResponse.json(cards);
   } catch (error) {
     console.error("[CARDS_GET]", error);
-    return new NextResponse("Internal Error", { status: 500 });
+    return new NextResponse(error.message || "Internal Error", { status: 500 });
   }
 }
 
 export async function POST(req) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
-
     const body = await req.json();
     const {
       id,
@@ -75,7 +41,7 @@ export async function POST(req) {
       showAiAssistant,
       templateId,
       htmlContent,
-      userPrompt
+      userPrompt,
     } = body;
 
     if (!name || !name.trim()) {
@@ -108,51 +74,25 @@ export async function POST(req) {
 
     if (id) {
       // Update existing
-      const existing = await prisma.businessCard.findFirst({
-        where: { id, userId: session.user.id }
-      });
-
+      const existing = await CardService.getCardById(id);
       if (!existing) {
         return new NextResponse("Not Found", { status: 404 });
       }
-
-      // If user switches back to standard templates from custom, clear htmlContent
-      if (cleanData.templateId !== "custom") {
-        cleanData.htmlContent = null;
-      }
-
-      const updated = await prisma.businessCard.update({
-        where: { id },
-        data: cleanData
-      });
-
+      const updated = await CardService.updateCard(id, cleanData);
       return NextResponse.json(updated);
     } else {
       // Create new
-      const urlHash = await generateUniqueHash();
-      const created = await prisma.businessCard.create({
-        data: {
-          ...cleanData,
-          urlHash,
-          userId: session.user.id
-        }
-      });
-
+      const created = await CardService.createCard(cleanData);
       return NextResponse.json(created);
     }
   } catch (error) {
     console.error("[CARDS_POST]", error);
-    return new NextResponse("Internal Error", { status: 500 });
+    return new NextResponse(error.message || "Internal Error", { status: 500 });
   }
 }
 
 export async function DELETE(req) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
-
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
 
@@ -160,21 +100,15 @@ export async function DELETE(req) {
       return new NextResponse("Missing card ID", { status: 400 });
     }
 
-    const card = await prisma.businessCard.findFirst({
-      where: { id, userId: session.user.id }
-    });
-
+    const card = await CardService.getCardById(id);
     if (!card) {
       return new NextResponse("Not Found", { status: 404 });
     }
 
-    await prisma.businessCard.delete({
-      where: { id }
-    });
-
+    await CardService.deleteCard(id);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("[CARDS_DELETE]", error);
-    return new NextResponse("Internal Error", { status: 500 });
+    return new NextResponse(error.message || "Internal Error", { status: 500 });
   }
 }

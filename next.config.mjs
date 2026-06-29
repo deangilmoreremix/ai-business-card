@@ -1,6 +1,17 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  /* config options here */
+  output: undefined,
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "**" },
+    ],
+    unoptimized: true,
+  },
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "5mb",
+    },
+  },
 };
 
 export default nextConfig;

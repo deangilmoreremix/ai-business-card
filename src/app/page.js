@@ -1,15 +1,15 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useSession, signIn } from "next-auth/react";
 import { generateCardDocument } from "@/lib/templates";
 import {
   FaMagic, FaSave, FaPlus, FaCheck, FaGlobe, FaArrowRight,
   FaTrashAlt, FaRobot, FaSpinner, FaChevronDown, FaQrcode,
   FaDownload, FaCopy, FaExternalLinkAlt, FaIdCard, FaShareAlt,
-  FaPencilAlt, FaEye
+  FaPencilAlt, FaEye, FaHandSparkles, FaLightbulb, FaFileDownload
 } from "react-icons/fa";
 import QRCode from "qrcode";
+import toast, { Toaster } from "react-hot-toast";
 
 const TEMPLATES = [
   { id: "neumorphism",       name: "Neumorphism",               emoji: "🫧" },
@@ -33,12 +33,10 @@ const EMPTY_FORM = {
   htmlContent: "", userPrompt: ""
 };
 
-// Shared input/label styles
 const inp = "w-full bg-white border border-gray-200 rounded px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400 transition-all";
 const lbl = "block text-[11px] font-semibold text-gray-400 mb-1 uppercase tracking-wider";
 
 export default function Home() {
-  const { data: session } = useSession();
   const [cards, setCards] = useState([]);
   const [selectedCardId, setSelectedCardId] = useState("");
   const [saveStatus, setSaveStatus] = useState("");
@@ -50,10 +48,10 @@ export default function Home() {
   const [templateOpen, setTemplateOpen] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [copied, setCopied] = useState(false);
-  // Mobile tab: "edit" | "preview" | "share"
   const [mobileTab, setMobileTab] = useState("edit");
-  // Desktop right panel toggle on md screens
   const [shareOpen, setShareOpen] = useState(false);
+  const [enhancingBio, setEnhancingBio] = useState(false);
+  const [suggestingTitle, setSuggestingTitle] = useState(false);
   const templateDropRef = useRef(null);
   const iframeRef = useRef(null);
 
@@ -70,7 +68,6 @@ export default function Home() {
     socialLinks: { github: "https://github.com", linkedin: "https://linkedin.com", twitter: "https://twitter.com" },
   });
 
-  // Close dropdown on outside click
   useEffect(() => {
     const handler = (e) => {
       if (templateDropRef.current && !templateDropRef.current.contains(e.target)) {
@@ -81,7 +78,9 @@ export default function Home() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  useEffect(() => { if (session?.user) fetchCards(); }, [session]);
+  useEffect(() => {
+    fetchCards();
+  }, []);
 
   useEffect(() => {
     if (cards.length > 0) {
@@ -113,11 +112,11 @@ export default function Home() {
       if (res.ok) {
         const data = await res.json();
         setCards(data);
-        
+
         const params = new URLSearchParams(window.location.search);
         const idParam = params.get("id");
         const newParam = params.get("new");
-        
+
         if (idParam) {
           const matching = data.find(c => c.id === idParam);
           if (matching) {
@@ -152,7 +151,15 @@ export default function Home() {
     });
   };
 
-  const handleCreateNew = () => { setSelectedCardId(""); setUrlHash(""); setFormData({ ...EMPTY_FORM }); };
+  const handleCreateNew = () => {
+    setSelectedCardId("");
+    setUrlHash("");
+    setFormData({ ...EMPTY_FORM });
+    if (typeof window !== "undefined") {
+      window.history.replaceState({}, "", `/?new=1`);
+    }
+  };
+
   const handleInput = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData(p => ({ ...p, [name]: type === "checkbox" ? checked : value }));
@@ -170,12 +177,13 @@ export default function Home() {
     fd.append("file", file);
     try {
       const res = await fetch("/api/upload", { method: "POST", body: fd });
-      if (res.ok) { const d = await res.json(); if (d.url) setFormData(p => ({ ...p, avatar: d.url })); }
-    } catch (err) { console.error(err); } finally { setIsUploading(false); }
+      if (res.ok) { const d = await res.json(); if (d.url) { setFormData(p => ({ ...p, avatar: d.url })); toast.success("Photo uploaded!"); } }
+      else { toast.error("Upload failed"); }
+    } catch (err) { toast.error("Upload error"); console.error(err); }
+    finally { setIsUploading(false); }
   };
 
   const handleSave = async (asNew = false) => {
-    if (!session?.user) { signIn("google"); return; }
     setSaveStatus("saving");
     try {
       const cardIdToSave = asNew ? undefined : (selectedCardId || undefined);
@@ -186,32 +194,44 @@ export default function Home() {
       });
       if (res.ok) {
         const saved = await res.json();
-        setSaveStatus("saved"); 
-        setSelectedCardId(saved.id); 
+        setSaveStatus("saved");
+        setSelectedCardId(saved.id);
         setUrlHash(saved.urlHash);
-        
+        toast.success(asNew ? "Saved as new copy!" : "Card saved!");
+
         if (typeof window !== "undefined") {
           window.history.replaceState({}, "", `/?id=${saved.id}`);
         }
-        
-        fetchCards(); 
+
+        fetchCards();
         setTimeout(() => setSaveStatus(""), 3000);
-      } else { setSaveStatus("error"); }
-    } catch (e) { setSaveStatus("error"); }
+      } else {
+        setSaveStatus("error");
+        toast.error("Save failed");
+      }
+    } catch (e) {
+      setSaveStatus("error");
+      toast.error("Save error");
+    }
   };
 
   const handleDelete = async () => {
     if (!selectedCardId || !confirm("Delete this card?")) return;
     try {
       const res = await fetch(`/api/cards?id=${selectedCardId}`, { method: "DELETE" });
-      if (res.ok) { handleCreateNew(); fetchCards(); }
-    } catch (e) {}
+      if (res.ok) {
+        toast.success("Card deleted");
+        handleCreateNew();
+        fetchCards();
+      }
+    } catch (e) {
+      toast.error("Delete failed");
+    }
   };
 
   const handleGenerateAI = async () => {
-    if (!session?.user) { signIn("google"); return; }
-    if ((session.user.credits ?? 0) < 5) { alert("You need at least 5 credits."); return; }
-    setAiStatus("generating"); setAiError("");
+    setAiStatus("generating");
+    setAiError("");
     try {
       const saveRes = await fetch("/api/cards", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -219,29 +239,118 @@ export default function Home() {
       });
       if (!saveRes.ok) throw new Error("Save failed");
       const savedCard = await saveRes.json();
-      setSelectedCardId(savedCard.id); setUrlHash(savedCard.urlHash);
+      setSelectedCardId(savedCard.id);
+      setUrlHash(savedCard.urlHash);
       const genRes = await fetch("/api/generate", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ cardId: savedCard.id, userPrompt: formData.userPrompt })
       });
       if (!genRes.ok) throw new Error(await genRes.text());
       const { requestId } = await genRes.json();
-      setAiStatus("polling"); setAiTimer(15);
-      const tick = setInterval(() => setAiTimer(p => p > 1 ? p - 1 : 1), 1000);
+
+      // Poll for completion
       let tries = 0;
+      const maxTries = 30;
       const poll = setInterval(async () => {
         tries++;
-        if (tries > 20) { clearInterval(poll); clearInterval(tick); setAiStatus("error"); setAiError("Timed out."); return; }
+        if (tries > maxTries) {
+          clearInterval(poll);
+          setAiStatus("error");
+          setAiError("Timed out.");
+          return;
+        }
         try {
           const st = await fetch(`/api/generate/status?cardId=${savedCard.id}&requestId=${requestId}`);
           if (st.ok) {
             const d = await st.json();
-            if (d.status === "completed") { clearInterval(poll); clearInterval(tick); setAiStatus("completed"); loadCard(d.card); fetchCards(); setTimeout(() => setAiStatus(""), 4000); }
-            else if (d.status === "failed") { clearInterval(poll); clearInterval(tick); setAiStatus("error"); setAiError(d.error || "Failed"); }
+            if (d.status === "completed") {
+              clearInterval(poll);
+              setAiStatus("completed");
+              loadCard(d.card);
+              fetchCards();
+              setTimeout(() => setAiStatus(""), 4000);
+              toast.success("AI design applied!");
+            } else if (d.status === "failed") {
+              clearInterval(poll);
+              setAiStatus("error");
+              setAiError(d.error || "Failed");
+            }
           }
         } catch (e) {}
-      }, 2000);
-    } catch (err) { setAiStatus("error"); setAiError(err.message); }
+      }, 1500);
+      setAiTimer(15);
+      const tick = setInterval(() => setAiTimer(p => p > 1 ? p - 1 : 1), 1000);
+      // Clean up tick when polling finishes
+      const cleanup = setInterval(() => {
+        if (aiStatus === "completed" || aiStatus === "error") {
+          clearInterval(tick);
+          clearInterval(cleanup);
+        }
+      }, 500);
+    } catch (err) {
+      setAiStatus("error");
+      setAiError(err.message);
+      toast.error(err.message || "AI generation failed");
+    }
+  };
+
+  // OpenAI-powered bio enhancer
+  const handleEnhanceBio = async () => {
+    if (!formData.bio.trim()) {
+      toast.error("Add a short bio first");
+      return;
+    }
+    setEnhancingBio(true);
+    try {
+      const res = await fetch("/api/enhance/bio", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: formData.bio, profession: formData.title }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.bio) {
+          setFormData(p => ({ ...p, bio: data.bio }));
+          toast.success("Bio enhanced by AI!");
+        }
+      } else {
+        toast.error("Bio enhancement failed");
+      }
+    } catch (e) {
+      toast.error("Network error");
+    } finally {
+      setEnhancingBio(false);
+    }
+  };
+
+  // OpenAI-powered title suggester
+  const handleSuggestTitle = async () => {
+    if (!formData.bio.trim() && !formData.company.trim()) {
+      toast.error("Add a bio or company first");
+      return;
+    }
+    setSuggestingTitle(true);
+    try {
+      const description = formData.bio || `Works at ${formData.company}`;
+      const res = await fetch("/api/enhance/title", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.title) {
+          setFormData(p => ({ ...p, title: data.title }));
+          toast.success("Title suggested!");
+        }
+      } else {
+        toast.error("Title suggestion failed");
+      }
+    } catch (e) {
+      toast.error("Network error");
+    } finally {
+      setSuggestingTitle(false);
+    }
   };
 
   // Download card as PNG via canvas
@@ -257,23 +366,34 @@ export default function Home() {
       a.href = canvas.toDataURL("image/png");
       a.download = `${formData.name || "card"}-business-card.png`;
       a.click();
+      toast.success("Card downloaded!");
     } catch (e) {
-      // Fallback: open card page for manual save
       if (urlHash) window.open(`/card/${urlHash}`, "_blank");
     }
+  };
+
+  const handleDownloadVCard = () => {
+    if (!urlHash) {
+      toast.error("Save your card first");
+      return;
+    }
+    window.open(`/api/vcard?hash=${urlHash}`, "_blank");
   };
 
   const cardUrl = urlHash ? `${typeof window !== "undefined" ? window.location.origin : ""}/card/${urlHash}` : "";
   const selectedTemplate = TEMPLATES.find(t => t.id === formData.templateId) || TEMPLATES[0];
   const handleCopyUrl = () => {
-    if (cardUrl) { navigator.clipboard.writeText(cardUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); }
+    if (cardUrl) {
+      navigator.clipboard.writeText(cardUrl);
+      setCopied(true);
+      toast.success("Link copied!");
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
-  // ─── Sub-components ──────────────────────────────────────
   const FormPanel = () => (
     <div className="flex flex-col h-full">
-      {/* Saved cards list */}
-      {session?.user && cards.length > 0 && (
+      {cards.length > 0 && (
         <div className="px-4 py-3 border-b border-gray-100">
           <div className="flex items-center justify-between mb-2">
             <span className={lbl}>My Cards</span>
@@ -309,10 +429,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* Scrollable form */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
-
-        {/* Template picker */}
         <div>
           <label className={lbl}>Template <span className="normal-case font-normal text-gray-300">(optional)</span></label>
           <div className="relative" ref={templateDropRef}>
@@ -352,7 +469,6 @@ export default function Home() {
           {formData.templateId === "custom" && <p className="mt-1 text-[11px] text-violet-600 font-medium">✨ Custom AI layout active</p>}
         </div>
 
-        {/* Identity */}
         <div className="space-y-2.5">
           <p className={lbl}>Identity</p>
           <div>
@@ -361,7 +477,19 @@ export default function Home() {
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-[11px] text-gray-400 block mb-1">Job Title</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[11px] text-gray-400">Job Title</label>
+                <button
+                  type="button"
+                  onClick={handleSuggestTitle}
+                  disabled={suggestingTitle}
+                  className="flex items-center gap-1 text-[10px] text-violet-600 hover:text-violet-700 font-semibold disabled:opacity-50"
+                  title="AI-suggest a title"
+                >
+                  {suggestingTitle ? <FaSpinner className="animate-spin" /> : <FaLightbulb />}
+                  <span>Suggest</span>
+                </button>
+              </div>
               <input type="text" name="title" value={formData.title} onChange={handleInput} placeholder="Designer" className={inp} />
             </div>
             <div>
@@ -370,19 +498,29 @@ export default function Home() {
             </div>
           </div>
           <div>
-            <label className="text-[11px] text-gray-400 block mb-1">Bio</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-[11px] text-gray-400">Bio</label>
+              <button
+                type="button"
+                onClick={handleEnhanceBio}
+                disabled={enhancingBio}
+                className="flex items-center gap-1 text-[10px] text-violet-600 hover:text-violet-700 font-semibold disabled:opacity-50"
+                title="Use OpenAI to polish your bio"
+              >
+                {enhancingBio ? <FaSpinner className="animate-spin" /> : <FaHandSparkles />}
+                <span>Enhance</span>
+              </button>
+            </div>
             <textarea name="bio" value={formData.bio} onChange={handleInput} rows={3} placeholder="Short professional bio..." className={`${inp} resize-none`} />
           </div>
         </div>
 
-        {/* Photo */}
         <div>
           <label className={lbl}>Profile Photo</label>
           <div className="flex items-center gap-3 p-3 bg-gray-50 rounded border border-dashed border-gray-200">
             <div className="w-11 h-11 rounded overflow-hidden border border-gray-200 bg-white flex items-center justify-center text-gray-300 flex-shrink-0">
               {isUploading ? <FaSpinner className="animate-spin text-violet-500 text-sm" />
                 : formData.avatar
-                  // eslint-disable-next-line @next/next/no-img-element
                   ? <img src={formData.avatar} alt="" className="w-full h-full object-cover" />
                   : <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
               }
@@ -396,7 +534,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Contact */}
         <div className="space-y-2.5">
           <p className={lbl}>Contact</p>
           <div className="grid grid-cols-2 gap-2">
@@ -419,7 +556,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Social Links */}
         <div className="space-y-2">
           <p className={lbl}>Social Links</p>
           {SOCIAL_FIELDS.map(field => (
@@ -431,7 +567,6 @@ export default function Home() {
           ))}
         </div>
 
-        {/* AI Assistant toggle */}
         <div className="flex items-center justify-between py-2.5 px-3 bg-gray-50 rounded border border-gray-100">
           <div className="flex items-center gap-2">
             <FaRobot className="text-violet-500 text-sm" />
@@ -446,22 +581,21 @@ export default function Home() {
           </label>
         </div>
 
-        {/* AI Styling */}
         <div className="bg-gradient-to-br from-violet-50 to-indigo-50 border border-violet-100 rounded p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <FaMagic className="text-violet-500 text-xs" />
               <span className="text-xs font-bold text-violet-700">AI Custom Design</span>
             </div>
-            <span className="text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded-full">5 Credits</span>
+            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">Free</span>
           </div>
           <textarea name="userPrompt" value={formData.userPrompt} onChange={handleInput} rows={2}
             className="w-full bg-white border border-violet-100 rounded px-3 py-2 text-xs text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500/20 resize-none transition-all"
             placeholder="e.g. neon cyberpunk, warm minimal, dark futuristic..."
           />
-          <button onClick={handleGenerateAI} disabled={aiStatus === "generating" || aiStatus === "polling"}
+          <button onClick={handleGenerateAI} disabled={aiStatus === "generating"}
             className="w-full bg-violet-600 hover:bg-violet-700 text-white rounded py-2 text-xs font-bold flex items-center justify-center gap-1.5 transition-all disabled:opacity-50">
-            {aiStatus === "generating" || aiStatus === "polling"
+            {aiStatus === "generating"
               ? <><FaSpinner className="animate-spin" /><span>Generating… ({aiTimer}s)</span></>
               : <><FaMagic /><span>Generate with AI</span></>}
           </button>
@@ -469,7 +603,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Save button */}
       <div className="p-4 border-t border-gray-100 bg-white">
         {selectedCardId ? (
           <div className="grid grid-cols-2 gap-2">
@@ -499,7 +632,6 @@ export default function Home() {
 
   const PreviewPanel = () => (
     <div className="flex-1 flex flex-col overflow-hidden bg-gray-50">
-      {/* Preview toolbar */}
       <div className="px-4 py-3 bg-white border-b border-gray-100 flex items-center justify-between gap-3 flex-shrink-0">
         <div className="min-w-0">
           <h1 className="text-sm font-bold text-gray-900 leading-none">Live Preview</h1>
@@ -513,6 +645,12 @@ export default function Home() {
                 <FaDownload className="text-[10px]" />
                 <span className="hidden sm:inline">Download</span>
               </button>
+              <button onClick={handleDownloadVCard}
+                className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 bg-gray-50 border border-gray-200 px-2.5 py-1.5 rounded hover:bg-gray-100 transition-all"
+                title="Download as .vcf contact file">
+                <FaFileDownload className="text-[10px]" />
+                <span className="hidden sm:inline">vCard</span>
+              </button>
               <a href={`/card/${urlHash}`} target="_blank" rel="noopener noreferrer"
                 className="flex items-center gap-1.5 text-xs font-semibold text-violet-600 bg-violet-50 border border-violet-200 px-2.5 py-1.5 rounded hover:bg-violet-100 transition-all">
                 <FaGlobe className="text-[10px]" />
@@ -521,7 +659,6 @@ export default function Home() {
               </a>
             </>
           )}
-          {/* Share button on md screens (toggles right panel) */}
           <button onClick={() => setShareOpen(o => !o)}
             className="lg:hidden flex items-center gap-1.5 text-xs font-semibold text-gray-600 bg-gray-50 border border-gray-200 px-2.5 py-1.5 rounded hover:bg-gray-100 transition-all">
             <FaShareAlt className="text-[10px]" />
@@ -530,17 +667,15 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Preview area */}
       <div className="flex-1 flex items-center justify-center p-4 md:p-8 relative overflow-hidden min-h-0">
         <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:20px_20px] opacity-50 pointer-events-none" />
 
-        {/* AI overlay */}
-        {(aiStatus === "generating" || aiStatus === "polling") && (
+        {(aiStatus === "generating") && (
           <div className="absolute inset-0 bg-white/85 backdrop-blur-sm flex flex-col items-center justify-center z-20 gap-3">
             <div className="w-9 h-9 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
             <div className="text-center px-4">
               <p className="text-sm font-bold text-gray-900">Generating your card…</p>
-              <p className="text-xs text-gray-500 mt-1">AI crafting custom design · {aiTimer}s</p>
+              <p className="text-xs text-gray-500 mt-1">OpenAI is crafting a custom design · {aiTimer}s</p>
             </div>
           </div>
         )}
@@ -550,7 +685,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* Responsive card frame */}
         <div className="relative z-10 w-full max-w-xs sm:max-w-sm md:max-w-md h-[460px] sm:h-[520px] md:h-[600px] bg-white rounded-2xl border border-gray-200 shadow-xl overflow-hidden flex flex-col">
           <iframe
             ref={iframeRef}
@@ -572,7 +706,6 @@ export default function Home() {
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-5">
-        {/* URL */}
         <div>
           <label className={lbl}>Card URL</label>
           <div className="flex gap-2">
@@ -589,7 +722,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Open / Download actions */}
         {urlHash && (
           <div className="grid grid-cols-2 gap-2">
             <a href={cardUrl} target="_blank" rel="noopener noreferrer"
@@ -603,7 +735,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* QR */}
         <div>
           <div className="flex items-center justify-between mb-2">
             <label className={lbl}>QR Code</label>
@@ -616,7 +747,6 @@ export default function Home() {
           </div>
           {qrDataUrl ? (
             <div className="bg-white border border-gray-200 rounded p-4 flex items-center justify-center">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={qrDataUrl} alt="QR Code" className="w-36 h-36 sm:w-44 sm:h-44" />
             </div>
           ) : (
@@ -626,26 +756,14 @@ export default function Home() {
             </div>
           )}
         </div>
-
-        {/* Sign in */}
-        {!session?.user && (
-          <div className="bg-gray-50 border border-gray-200 rounded p-4 text-center space-y-3">
-            <p className="text-xs text-gray-600 leading-relaxed">Sign in to save, share, and manage multiple cards</p>
-            <button onClick={() => signIn("google")}
-              className="w-full bg-gray-900 hover:bg-gray-800 text-white rounded py-2.5 text-xs font-bold transition-all">
-              Sign in with Google
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );
 
-  // ─── Main Render ──────────────────────────────────────────
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-gray-50" style={{ minHeight: 0 }}>
+      <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
 
-      {/* ══ MOBILE: tab bar ══════════════════════════════════ */}
       <div className="lg:hidden flex border-b border-gray-200 bg-white flex-shrink-0">
         {[
           { id: "edit",    label: "Edit",    icon: FaPencilAlt },
@@ -664,7 +782,6 @@ export default function Home() {
         ))}
       </div>
 
-      {/* ══ MOBILE: single panel based on tab ════════════════ */}
       <div className="lg:hidden flex-1 overflow-hidden flex flex-col min-h-0">
         {mobileTab === "edit" && (
           <div className="flex-1 overflow-hidden flex flex-col bg-white min-h-0">
@@ -683,26 +800,18 @@ export default function Home() {
         )}
       </div>
 
-      {/* ══ DESKTOP: 3-column layout ═════════════════════════ */}
       <div className="hidden lg:flex flex-1 overflow-hidden min-h-0">
-
-        {/* Left — Form */}
         <aside className="w-72 xl:w-80 flex-shrink-0 bg-white border-r border-gray-100 flex flex-col overflow-hidden">
           <FormPanel />
         </aside>
-
-        {/* Center — Preview */}
         <main className="flex-1 flex flex-col overflow-hidden min-w-0">
           <PreviewPanel />
         </main>
-
-        {/* Right — Share (always visible on lg+) */}
         <aside className="w-60 xl:w-64 flex-shrink-0 bg-white border-l border-gray-100 overflow-hidden flex flex-col">
           <SharePanel />
         </aside>
       </div>
 
-      {/* ══ TABLET md: share drawer overlay ═════════════════ */}
       {shareOpen && (
         <div className="lg:hidden fixed inset-0 z-50 flex justify-end">
           <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setShareOpen(false)} />

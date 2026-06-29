@@ -1,12 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession, signIn } from "next-auth/react";
 import Link from "next/link";
 import {
   FaPlus, FaTrashAlt, FaPencilAlt, FaEye, FaQrcode,
-  FaDownload, FaSpinner, FaIdCard, FaGoogle, FaUser,
-  FaCopy, FaCheck, FaExclamationTriangle
+  FaDownload, FaSpinner, FaIdCard, FaUser,
+  FaCopy, FaCheck, FaExclamationTriangle, FaChartBar
 } from "react-icons/fa";
 import QRCode from "qrcode";
 
@@ -21,21 +20,17 @@ const TEMPLATES = [
 ];
 
 export default function MyCardsPage() {
-  const { data: session, status } = useSession();
   const [cards, setCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
   const [qrModalCard, setQrModalCard] = useState(null);
   const [modalQrUrl, setModalQrUrl] = useState("");
+  const [viewCounts, setViewCounts] = useState({});
 
   useEffect(() => {
-    if (session?.user) {
-      fetchCards();
-    } else if (status !== "loading") {
-      setLoading(false);
-    }
-  }, [session, status]);
+    fetchCards();
+  }, []);
 
   const fetchCards = async () => {
     setLoading(true);
@@ -44,6 +39,20 @@ export default function MyCardsPage() {
       if (res.ok) {
         const data = await res.json();
         setCards(data);
+        // Fetch view counts for each card (best-effort)
+        const counts = {};
+        await Promise.all(
+          data.map(async (c) => {
+            try {
+              const r = await fetch(`/api/analytics?urlHash=${c.urlHash}`);
+              if (r.ok) {
+                const j = await r.json();
+                counts[c.id] = j.views || 0;
+              }
+            } catch (e) {}
+          })
+        );
+        setViewCounts(counts);
       }
     } catch (e) {
       console.error(e);
@@ -89,35 +98,11 @@ export default function MyCardsPage() {
     }
   };
 
-  if (status === "loading" || (loading && cards.length === 0)) {
+  if (loading && cards.length === 0) {
     return (
       <div className="min-h-[80vh] flex flex-col items-center justify-center bg-gray-50">
         <FaSpinner className="animate-spin text-3xl text-violet-600 mb-4" />
         <p className="text-sm font-medium text-gray-500">Loading your business cards...</p>
-      </div>
-    );
-  }
-
-  // 1. Logged Out / Unauthorized State
-  if (!session?.user) {
-    return (
-      <div className="min-h-[85vh] flex items-center justify-center bg-gray-50 px-4 py-12">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
-          <div className="h-14 w-14 rounded-2xl bg-violet-50 text-violet-600 flex items-center justify-center mx-auto mb-6">
-            <FaIdCard className="text-2xl" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight mb-2">My Digital Cards</h1>
-          <p className="text-sm text-gray-500 leading-relaxed mb-8">
-            Create, customize, and manage all your premium AI-designed interactive business cards in one central place. Sign in to get started.
-          </p>
-          <button
-            onClick={() => signIn("google")}
-            className="w-full flex items-center justify-center gap-2.5 px-5 py-3 rounded-xl text-sm font-bold text-white bg-violet-600 hover:bg-violet-700 active:bg-violet-800 shadow-md shadow-violet-100 hover:shadow-lg transition-all cursor-pointer"
-          >
-            <FaGoogle className="text-xs" />
-            <span>Sign in with Google</span>
-          </button>
-        </div>
       </div>
     );
   }
@@ -213,6 +198,14 @@ export default function MyCardsPage() {
                         <span>Status</span>
                         <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
                           Active Link
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-gray-500">
+                        <span className="flex items-center gap-1">
+                          <FaChartBar className="text-[9px]" /> Views
+                        </span>
+                        <span className="font-semibold text-gray-700 text-[11px]">
+                          {viewCounts[c.id] ?? 0}
                         </span>
                       </div>
                     </div>

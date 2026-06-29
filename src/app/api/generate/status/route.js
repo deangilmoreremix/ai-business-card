@@ -1,15 +1,8 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
 import { AIService } from "@/lib/services/ai";
 
 export async function GET(req) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
-
     const { searchParams } = new URL(req.url);
     const cardId = searchParams.get("cardId");
     const requestId = searchParams.get("requestId");
@@ -26,6 +19,6 @@ export async function GET(req) {
     return NextResponse.json(result);
   } catch (error) {
     console.error("[GENERATE_STATUS]", error);
-    return new NextResponse("Internal Error", { status: 500 });
+    return new NextResponse(error.message || "Internal Error", { status: 500 });
   }
 }

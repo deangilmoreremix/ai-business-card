@@ -1,46 +1,27 @@
 const config = {
-  appName: "Ai Business Card",
-  auth: {
-    google: {
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    },
-    secret: process.env.NEXTAUTH_SECRET,
-    url: process.env.NEXTAUTH_URL || "http://localhost:3001",
-    webhook_url: process.env.WEBHOOK_URL || process.env.NEXTAUTH_URL || "http://localhost:3001",
+  appName: "CardAI Creator",
+  supabase: {
+    url: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    serviceKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    publishableKey: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    secretKey: process.env.SUPABASE_SECRET_KEY,
   },
-  stripe: {
-    publishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
-    secretKey: process.env.STRIPE_SECRET_KEY,
-    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
-    plans: {
-      starter: {
-        id: "starter",
-        name: "Starter Pack",
-        credits: 100,
-        price: 1000, // $10.00
-      },
-      pro: {
-        id: "pro",
-        name: "Professional Pack",
-        credits: 300,
-        price: 2500, // $25.00
-      },
-      business: {
-        id: "business",
-        name: "Business Pack",
-        credits: 750,
-        price: 5000, // $50.00
-      }
-    }
+  openai: {
+    apiKey: process.env.OPENAI_API_KEY,
+    model: "gpt-4o",
+    cardGenerationModel: "gpt-4o",
+    chatbotModel: "gpt-4o",
+    visionModel: "gpt-4o",
   },
   ai: {
     apiKey: process.env.MUAPIAPP_API_KEY,
-    generationCost: 5, // 5 credits per AI business card custom generation
+    provider: process.env.OPENAI_API_KEY ? "openai" : "muapi",
   },
-  db: {
-    url: process.env.DATABASE_URL,
-  }
+  app: {
+    url: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+    theme: process.env.NEXT_PUBLIC_THEME || "light",
+  },
 };
 
 export default config;

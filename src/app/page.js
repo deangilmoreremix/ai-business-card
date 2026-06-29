@@ -6,10 +6,12 @@ import {
   FaMagic, FaSave, FaPlus, FaCheck, FaGlobe, FaArrowRight,
   FaTrashAlt, FaRobot, FaSpinner, FaChevronDown, FaQrcode,
   FaDownload, FaCopy, FaExternalLinkAlt, FaIdCard, FaShareAlt,
-  FaPencilAlt, FaEye, FaHandSparkles, FaLightbulb, FaFileDownload
+  FaPencilAlt, FaEye, FaHandSparkles, FaLightbulb, FaFileDownload,
+  FaImage
 } from "react-icons/fa";
 import QRCode from "qrcode";
 import toast, { Toaster } from "react-hot-toast";
+import { AIImageStudio } from "@/components/AIImageStudio";
 
 const TEMPLATES = [
   { id: "neumorphism",       name: "Neumorphism",               emoji: "🫧" },
@@ -555,6 +557,8 @@ export default function Home() {
             <input type="text" name="address" value={formData.address} onChange={handleInput} placeholder="City, Country" className={inp} />
           </div>
         </div>
+
+        <AIImageStudio formData={formData} setFormData={setFormData} />
 
         <div className="space-y-2">
           <p className={lbl}>Social Links</p>

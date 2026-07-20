@@ -1,15 +1,11 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { getOrCreateUser } from "@/lib/auth";
 import { BillingService } from "@/lib/services/billing";
 
 export async function POST(req) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
+    const user = await getOrCreateUser();
+    const userId = user.id;
 
     const { planId } = await req.json();
     if (!planId) {
@@ -17,13 +13,16 @@ export async function POST(req) {
     }
 
     const checkoutUrl = await BillingService.createCheckoutSession(
-      session.user.id, 
+      userId,
       planId
     );
 
     return NextResponse.json({ url: checkoutUrl });
   } catch (error) {
     console.error("[STRIPE_CHECKOUT]", error);
+    if (error.message === "UNAUTHORIZED") {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
     return new NextResponse("Internal Error", { status: 500 });
   }
 }

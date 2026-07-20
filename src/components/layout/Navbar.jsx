@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signIn, signOut, useSession } from "next-auth/react";
+import { useUser, SignInButton, UserButton, useClerk } from "@clerk/nextjs";
 import { FaCoins, FaUser, FaIdCard, FaSignOutAlt, FaGoogle } from "react-icons/fa";
 import { SiVercel } from "react-icons/si";
 import clsx from "clsx";
@@ -14,7 +14,11 @@ const navLinks = [
 
 export function Navbar() {
   const pathname = usePathname();
-  const { data: session } = useSession();
+  const { isSignedIn, user } = useUser();
+  const { signOut } = useClerk();
+  const session = isSignedIn && user
+    ? { user: { credits: undefined, image: user.imageUrl, name: user.fullName ?? user.username } }
+    : null;
 
   const links = [...navLinks];
   if (session?.user) {
@@ -82,7 +86,7 @@ export function Navbar() {
 
             {/* Sign out */}
             <button
-              onClick={() => signOut()}
+              onClick={() => signOut({ redirectUrl: "/login" })}
               className="flex items-center gap-1 text-xs font-medium text-gray-400 hover:text-red-500 transition-colors cursor-pointer"
               title="Sign out"
             >
@@ -91,13 +95,14 @@ export function Navbar() {
             </button>
           </>
         ) : (
-          <button
-            onClick={() => signIn("google")}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-violet-600 hover:bg-violet-700 rounded-lg transition-all cursor-pointer"
-          >
-            <FaGoogle className="text-[10px]" />
-            <span>Sign in</span>
-          </button>
+          <SignInButton mode="modal">
+            <button
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-violet-600 hover:bg-violet-700 rounded-lg transition-all cursor-pointer"
+            >
+              <FaGoogle className="text-[10px]" />
+              <span>Sign in</span>
+            </button>
+          </SignInButton>
         )}
 
         {/* Deploy button */}

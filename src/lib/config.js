@@ -1,13 +1,8 @@
 const config = {
   appName: "Ai Business Card",
   auth: {
-    google: {
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    },
-    secret: process.env.NEXTAUTH_SECRET,
-    url: process.env.NEXTAUTH_URL || "http://localhost:3001",
-    webhook_url: process.env.WEBHOOK_URL || process.env.NEXTAUTH_URL || "http://localhost:3001",
+    url: process.env.NEXTAUTH_URL || process.env.APP_URL || "http://localhost:3000",
+    webhook_url: process.env.WEBHOOK_URL || process.env.NEXTAUTH_URL || process.env.APP_URL || "http://localhost:3000",
   },
   stripe: {
     publishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,

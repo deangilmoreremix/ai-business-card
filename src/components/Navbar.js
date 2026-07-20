@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useSession, signOut } from "next-auth/react";
+import { UserButton, SignInButton, useClerk } from "@clerk/nextjs";
+import { useCurrentUser } from "@/lib/useCurrentUser";
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { IoClose, IoMenu } from "react-icons/io5";
@@ -10,7 +11,9 @@ import { SiVercel } from "react-icons/si";
 import config from "@/lib/config";
 
 export default function Navbar() {
-  const { data: session, status } = useSession();
+  const { data: session, status } = useCurrentUser();
+  const { signOut } = useClerk();
+  const handleSignOut = () => signOut({ redirectUrl: "/login" });
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -128,7 +131,7 @@ export default function Navbar() {
                       {session.user.email}
                     </div>
                     <button
-                      onClick={() => signOut({ callbackUrl: "/login" })}
+                      onClick={() => handleSignOut()}
                       className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm font-semibold text-red-500 hover:bg-red-500/10 transition-colors"
                     >
                       <FiLogOut size={14} />
@@ -202,7 +205,7 @@ export default function Navbar() {
               <button
                 onClick={() => {
                   setIsOpen(false);
-                  signOut({ callbackUrl: "/login" });
+                  handleSignOut();
                 }}
                 className="flex w-full items-center justify-center gap-2 rounded bg-red-500/10 text-red-500 py-3 text-sm font-bold hover:bg-red-500/20 transition-all border border-red-500/20 mt-2"
               >

@@ -2,7 +2,7 @@
 
 > **Design, share, and chat through interactive digital business cards in seconds.** A production-ready, self-hostable Next.js SaaS boilerplate with 7 premium templates, AI-styled custom layouts, QR sharing, and a visitor-facing AI chatbot that answers questions about you on your behalf. A free open-source alternative to Popl, HiHello, Linq, and Mobilo — powered by the MuAPI AI engine.
 
-**Tech stack:** Next.js 14 (App Router) · Prisma · PostgreSQL · NextAuth (Google OAuth) · Stripe · Tailwind CSS · MuAPI · OpenAI (chatbot)
+**Tech stack:** Next.js 14 (App Router) · Prisma · PostgreSQL · Clerk (Authentication) · Stripe · Tailwind CSS · MuAPI · OpenAI (chatbot)
 **Use cases:** Networking events · Conference badges · Sales rep cards · Real estate agent cards · Freelancer portfolios · Creator landing pages · Lead capture pages · QR vCard sharing · Personal branding
 
 <p align="center">
@@ -25,7 +25,7 @@ CardAI Creator is a highly optimized SaaS application designed to help professio
 
 **Why use CardAI Creator?**
 
-- **Production-Ready SaaS Boilerplate** — Configured with Google OAuth, PostgreSQL connection pooling, and Stripe Checkout.
+- **Production-Ready SaaS Boilerplate** — Configured with Clerk authentication, PostgreSQL connection pooling, and Stripe Checkout.
 - **AI Custom Layouts** — Enter prompts like *"make this look retro cyberpunk"* to generate custom Tailwind card styling using OpenAI models via MuAPI.
 - **Interactive AI Clone Assistant** — Shared cards feature a chatbot widget. Visitors can ask questions (e.g. *"What is her email?"*, *"What are his core specialties?"*), resolved using the card's profile as LLM context.
 - **Base64 & MuAPI Image Uploading** — Self-contained image selector uploads avatars to MuAPI with automatic inline data-URL fallback.
@@ -70,10 +70,8 @@ Configure these keys inside your local `.env` or production Vercel dashboard:
 | Category              | Variable                             | Purpose & Source                                                                             |
 | :-------------------- | :----------------------------------- | :------------------------------------------------------------------------------------------- |
 | **Database**          | `DATABASE_URL`                       | PostgreSQL connection string ([Supabase](https://supabase.com) or [Neon](https://neon.tech)) |
-| **NextAuth / Google** | `NEXTAUTH_SECRET`                    | Random secret string for signing auth tokens (`openssl rand -base64 32`)                     |
-|                       | `NEXTAUTH_URL`                       | Local/production domain (e.g. `http://localhost:3000`)                                       |
-|                       | `GOOGLE_CLIENT_ID`                   | Obtained from [Google Cloud Console Credentials](https://console.cloud.google.com/)          |
-|                       | `GOOGLE_CLIENT_SECRET`               | Obtained from [Google Cloud Console Credentials](https://console.cloud.google.com/)          |
+| **Clerk Auth**        | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Obtained from [Clerk Dashboard](https://dashboard.clerk.com/)                                  |
+|                       | `CLERK_SECRET_KEY`                  | Obtained from [Clerk Dashboard](https://dashboard.clerk.com/)                                  |
 | **Stripe Billing**    | `STRIPE_SECRET_KEY`                  | Obtained from [Stripe API Keys](https://dashboard.stripe.com/apikeys)                        |
 |                       | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Obtained from [Stripe API Keys](https://dashboard.stripe.com/apikeys)                        |
 |                       | `STRIPE_WEBHOOK_SECRET`              | Configured webhook secret to resolve transaction credits                                     |

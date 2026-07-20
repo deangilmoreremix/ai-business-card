@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useCurrentUser } from "@/lib/useCurrentUser";
 import { useState } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -16,12 +16,12 @@ const PLANS = [
 ];
 
 export default function Pricing() {
-  const { data: session, status } = useSession();
+  const { data: session, status } = useCurrentUser();
   const [loadingPlan, setLoadingPlan] = useState(null);
 
   const handleCheckout = async (planId) => {
     if (status !== "authenticated") {
-      toast.error("You must sign in with Google to purchase credit packages.");
+      toast.error("You must sign in to purchase credit packages.");
       return;
     }
 

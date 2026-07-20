@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { getOrCreateUser } from "@/lib/auth";
 import { AIService } from "@/lib/services/ai";
 
 export async function POST(req) {
   try {
-    const session = await getServerSession(authOptions);
+    const user = await getOrCreateUser();
 
-    if (!session?.user) {
+    if (!user) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
@@ -17,11 +16,14 @@ export async function POST(req) {
       return new NextResponse("Card ID is required", { status: 400 });
     }
 
-    const requestId = await AIService.generateCardHTML(session.user.id, cardId, userPrompt);
+    const requestId = await AIService.generateCardHTML(user.id, cardId, userPrompt);
 
     return NextResponse.json({ requestId });
   } catch (error) {
     console.error("[GENERATE_CARD]", error);
+    if (error.message === "UNAUTHORIZED") {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
     return new NextResponse(error.message || "Internal Error", { status: 500 });
   }
 }

@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { getOrCreateUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 // Generate unique hash for card URL
@@ -21,17 +20,15 @@ async function generateUniqueHash() {
 
 export async function GET(req) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
+    const user = await getOrCreateUser();
+    const userId = user.id;
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
 
     if (id) {
       const card = await prisma.businessCard.findFirst({
-        where: { id, userId: session.user.id }
+        where: { id, userId }
       });
       if (!card) {
         return new NextResponse("Not Found", { status: 404 });
@@ -40,7 +37,7 @@ export async function GET(req) {
     }
 
     const cards = await prisma.businessCard.findMany({
-      where: { userId: session.user.id },
+      where: { userId },
       orderBy: { createTime: "desc" }
     });
 
@@ -53,10 +50,8 @@ export async function GET(req) {
 
 export async function POST(req) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
+    const user = await getOrCreateUser();
+    const userId = user.id;
 
     const body = await req.json();
     const {
@@ -109,7 +104,7 @@ export async function POST(req) {
     if (id) {
       // Update existing
       const existing = await prisma.businessCard.findFirst({
-        where: { id, userId: session.user.id }
+        where: { id, userId }
       });
 
       if (!existing) {
@@ -134,7 +129,7 @@ export async function POST(req) {
         data: {
           ...cleanData,
           urlHash,
-          userId: session.user.id
+          userId
         }
       });
 
@@ -148,10 +143,8 @@ export async function POST(req) {
 
 export async function DELETE(req) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
+    const user = await getOrCreateUser();
+    const userId = user.id;
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
@@ -161,7 +154,7 @@ export async function DELETE(req) {
     }
 
     const card = await prisma.businessCard.findFirst({
-      where: { id, userId: session.user.id }
+      where: { id, userId }
     });
 
     if (!card) {

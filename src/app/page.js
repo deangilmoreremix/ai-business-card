@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useSession, signIn } from "next-auth/react";
+import { SignInButton } from "@clerk/nextjs";
+import { useCurrentUser, signOutAndRedirect } from "@/lib/useCurrentUser";
 import { generateCardDocument } from "@/lib/templates";
 import {
   FaMagic, FaSave, FaPlus, FaCheck, FaGlobe, FaArrowRight,
@@ -38,7 +39,7 @@ const inp = "w-full bg-white border border-gray-200 rounded px-3 py-2 text-sm te
 const lbl = "block text-[11px] font-semibold text-gray-400 mb-1 uppercase tracking-wider";
 
 export default function Home() {
-  const { data: session } = useSession();
+  const { data: session } = useCurrentUser();
   const [cards, setCards] = useState([]);
   const [selectedCardId, setSelectedCardId] = useState("");
   const [saveStatus, setSaveStatus] = useState("");
@@ -175,7 +176,7 @@ export default function Home() {
   };
 
   const handleSave = async (asNew = false) => {
-    if (!session?.user) { signIn("google"); return; }
+    if (!session?.user) { window.location.href = "/login"; return; }
     setSaveStatus("saving");
     try {
       const cardIdToSave = asNew ? undefined : (selectedCardId || undefined);
@@ -209,7 +210,7 @@ export default function Home() {
   };
 
   const handleGenerateAI = async () => {
-    if (!session?.user) { signIn("google"); return; }
+    if (!session?.user) { window.location.href = "/login"; return; }
     if ((session.user.credits ?? 0) < 5) { alert("You need at least 5 credits."); return; }
     setAiStatus("generating"); setAiError("");
     try {
@@ -631,10 +632,11 @@ export default function Home() {
         {!session?.user && (
           <div className="bg-gray-50 border border-gray-200 rounded p-4 text-center space-y-3">
             <p className="text-xs text-gray-600 leading-relaxed">Sign in to save, share, and manage multiple cards</p>
-            <button onClick={() => signIn("google")}
-              className="w-full bg-gray-900 hover:bg-gray-800 text-white rounded py-2.5 text-xs font-bold transition-all">
-              Sign in with Google
-            </button>
+            <SignInButton mode="modal" fallbackRedirectUrl="/">
+              <button className="w-full bg-gray-900 hover:bg-gray-800 text-white rounded py-2.5 text-xs font-bold transition-all">
+                Sign in
+              </button>
+            </SignInButton>
           </div>
         )}
       </div>

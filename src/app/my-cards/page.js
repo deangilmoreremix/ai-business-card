@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession, signIn } from "next-auth/react";
+import { SignInButton } from "@clerk/nextjs";
+import { useCurrentUser } from "@/lib/useCurrentUser";
 import Link from "next/link";
 import {
   FaPlus, FaTrashAlt, FaPencilAlt, FaEye, FaQrcode,
@@ -21,7 +22,7 @@ const TEMPLATES = [
 ];
 
 export default function MyCardsPage() {
-  const { data: session, status } = useSession();
+  const { data: session, status } = useCurrentUser();
   const [cards, setCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState(null);
@@ -110,13 +111,14 @@ export default function MyCardsPage() {
           <p className="text-sm text-gray-500 leading-relaxed mb-8">
             Create, customize, and manage all your premium AI-designed interactive business cards in one central place. Sign in to get started.
           </p>
-          <button
-            onClick={() => signIn("google")}
-            className="w-full flex items-center justify-center gap-2.5 px-5 py-3 rounded-xl text-sm font-bold text-white bg-violet-600 hover:bg-violet-700 active:bg-violet-800 shadow-md shadow-violet-100 hover:shadow-lg transition-all cursor-pointer"
-          >
-            <FaGoogle className="text-xs" />
-            <span>Sign in with Google</span>
-          </button>
+           <SignInButton mode="modal" fallbackRedirectUrl="/my-cards">
+            <button
+              className="w-full flex items-center justify-center gap-2.5 px-5 py-3 rounded-xl text-sm font-bold text-white bg-violet-600 hover:bg-violet-700 active:bg-violet-800 shadow-md shadow-violet-100 hover:shadow-lg transition-all cursor-pointer"
+            >
+              <FaGoogle className="text-xs" />
+              <span>Sign in</span>
+            </button>
+          </SignInButton>
         </div>
       </div>
     );
